@@ -10,6 +10,9 @@ from Products.CMFPlone.PloneBaseTool import getExprContext
 from Products.PlonePAS.interfaces.events import IUserInitialLoginInEvent
 
 from plone.registry.interfaces import IRegistry
+from plone import api
+import uuid
+import requests
 
 logger = logging.getLogger('collective.onlogin')
 def logException(msg, context=None):
@@ -18,6 +21,7 @@ def logException(msg, context=None):
         error_log = getattr(context, 'error_log', None)
         if error_log is not None:
             error_log.raising(sys.exc_info())
+
 
 def userLogin(obj, event):
     """Redirects logged in users to personal dashboard"""
@@ -40,11 +44,41 @@ def userLogin(obj, event):
 
     # get portal object
     portal = getSite()
-        
+
     # check if we have an access to request object
     request = getattr(portal, 'REQUEST', None)
     if not request:
         return
+
+    mt = getToolByName(portal, 'portal_membership')
+    user = mt.getAuthenticatedMember()
+    try: 
+        username = user.getName()
+    except:
+        username = 'admin'
+    firstName = user.getProperty('firstname')
+    lastName = user.getProperty('lastname')
+    password = str(uuid.uuid4())[:12]
+    email = user.getProperty('email')
+    registry = getUtility(IRegistry)
+    secret = registry['plonetheme.healthlens.lms_secret']
+    groups = api.group.get_groups(username=username)
+    groups = []
+    
+    payload = {
+        'firstName': firstName,
+        'lastName': lastName,
+        'username': username,
+        'email': email,
+        'pw': password,
+        'secret': secret,
+    }
+    for (i, group) in enumerate(groups):
+        payload["group[{0}]".format(i)] = group
+
+    logger.info(payload)
+    url = 'https://portal.healthlens.org/lms_login.php'
+    r = requests.get(url, params=payload)
 
     # check if we need to ignore came_from variable
     ignore_came_from = registry.get(
