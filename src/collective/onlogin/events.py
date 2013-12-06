@@ -61,7 +61,7 @@ def userLogin(obj, event):
     password = str(uuid.uuid4())[:12]
     email = user.getProperty('email')
     registry = getUtility(IRegistry)
-    secret = registry['plonetheme.healthlens.lms_secret']
+    secret = registry['cloudspring.lms.secret']
     groups = api.group.get_groups(username=username)
     groups = []
     
